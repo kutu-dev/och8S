@@ -8,6 +8,8 @@ typedef struct VirtualMachine {
     uint8_t v_registers[16];
     uint16_t pc_stack[200];
     size_t pc_stack_index;
+    uint8_t delay_timer;
+    uint8_t sound_timer;
 } VirtualMachine;
 
 typedef struct Opcode {
@@ -26,6 +28,6 @@ Opcode get_opcode(VirtualMachine* virtual_machine);
 
 VirtualMachine* create_virtual_machine(void);
 
-int process_opcode(VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer, Screen* screen);
+int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer, Screen* screen);
 
 #endif

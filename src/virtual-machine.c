@@ -85,11 +85,11 @@ VirtualMachine* create_virtual_machine()
     return virtual_machine;
 }
 
-int process_opcode(VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer, Screen* screen)
+int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer, Screen* screen)
 {
     Opcode opcode = get_opcode(virtual_machine);
 
-    printf("%x %x %x %x -- %x at %x\n", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.nibbles_2_3_4, virtual_machine->pc);
+    //printf("%x %x %x %x -- %x at %x\n", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.nibbles_2_3_4, virtual_machine->pc);
 
     virtual_machine->pc += 2;
 
@@ -107,26 +107,33 @@ int process_opcode(VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer,
             if (draw_screen_buffer(screen_buffer, screen) != 0) {
                 return 1;
             }
+
+            return 0;
         }
 
         if (opcode.nibbles_2_3_4 == 0x0EE) {
-            virtual_machine->pc = virtual_machine->pc_stack[virtual_machine->pc_stack_index];
+            virtual_machine->pc = virtual_machine->pc_stack[virtual_machine->pc_stack_index - 1];
+            printf("Jumping back to execution at %x, index: %ld\n", virtual_machine->pc, virtual_machine->pc_stack_index);
             virtual_machine->pc_stack_index--;
+
+            return 0;
         }
 
         puts("Execute machine language routine detected, skipping it");
         break;
 
     case 0x01:
-        printf("Jumping to address %x\n", opcode.nibbles_2_3_4);
+        // printf("Jumping to address %x\n", opcode.nibbles_2_3_4);
         virtual_machine->pc = opcode.nibbles_2_3_4 / sizeof(virtual_machine->memory[0]);
 
         break;
 
     case 0x02:
-        printf("Jumping to subroutine at %x\n", opcode.nibbles_2_3_4);
+        // printf("Jumping to subroutine at %x\n", opcode.nibbles_2_3_4);
+        // printf("Sending to stack index: %ld with value %x\n", virtual_machine->pc_stack_index, virtual_machine->pc);
 
         virtual_machine->pc_stack[virtual_machine->pc_stack_index] = virtual_machine->pc;
+        virtual_machine->pc_stack_index++;
 
         virtual_machine->pc = opcode.nibbles_2_3_4 / sizeof(virtual_machine->memory[0]);
 
@@ -155,13 +162,96 @@ int process_opcode(VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer,
         break;
     }
 
-    case 0x08:
+    case 0x06:
+        // printf("Setting register %x to value %x\n", opcode.nibble_2, opcode.byte_2);
+
+        virtual_machine->v_registers[opcode.nibble_2] = opcode.byte_2;
+
+        break;
+
+    case 0x07:
+        // printf("Adding %x to register %x\n", opcode.byte_2, opcode.nibble_2);
+
+        virtual_machine->v_registers[opcode.nibble_2] += opcode.byte_2;
+
+        break;
+
+    case 0x08: {
+        uint8_t* register_1 = &(virtual_machine->v_registers[opcode.nibble_2]);
+        uint8_t* register_2 = &(virtual_machine->v_registers[opcode.nibble_3]);
+
         switch (opcode.nibble_4) {
         case 0:
-            virtual_machine->v_registers[opcode.nibble_2] = virtual_machine->v_registers[opcode.nibble_3];
+            *register_1 = *register_2;
+            break;
+        case 1:
+            *register_1 |= *register_2;
+            break;
+        case 2:
+            *register_1 &= *register_2;
+            break;
+        case 3:
+            *register_1 ^= *register_2;
+            break;
+        case 4: {
+            uint8_t old_register_1 = *register_1;
+
+            *register_1 += *register_2;
+
+            // Detect overflow
+            if (*register_1 < old_register_1) {
+                virtual_machine->v_registers[15] = 1;
+            } else {
+                virtual_machine->v_registers[15] = 0;
+            }
+
             break;
         }
+        case 5: {
+            bool underflow = *register_1 >= *register_2;
+
+            *register_1 -= *register_2;
+
+            if (underflow) {
+                virtual_machine->v_registers[15] = 1;
+            } else {
+                virtual_machine->v_registers[15] = 0;
+            }
+            break;
+        }
+        case 7: {
+            bool underflow = *register_2 >= *register_1;
+
+            *register_1 = *register_2 - *register_1;
+
+            if (underflow) {
+                virtual_machine->v_registers[15] = 1;
+            } else {
+                virtual_machine->v_registers[15] = 0;
+            }
+            break;
+        }
+        case 6: {
+            *register_1 = *register_2;
+            uint8_t unshift_register_1 = *register_1;
+
+            *register_1 >>= 1;
+
+            virtual_machine->v_registers[15] = unshift_register_1 & 0x01;
+            break;
+        }
+        case 0x0E: {
+            *register_1 = *register_2;
+            uint8_t unshift_register_1 = *register_1;
+
+            *register_1 <<= 1;
+
+            virtual_machine->v_registers[15] = (unshift_register_1 & 0x80) >> 7;
+            break;
+        }
+        }
         break;
+    }
 
     case 0x09: {
         uint8_t register_1 = virtual_machine->v_registers[opcode.nibble_2];
@@ -174,25 +264,20 @@ int process_opcode(VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer,
         break;
     }
 
-    case 0x06:
-        printf("Setting register %x to value %x\n", opcode.nibble_2, opcode.byte_2);
-
-        virtual_machine->v_registers[opcode.nibble_2] = opcode.byte_2;
-
-        break;
-
-    case 0x07:
-        printf("Adding %x to register %x\n", opcode.byte_2, opcode.nibble_2);
-
-        virtual_machine->v_registers[opcode.nibble_2] += opcode.byte_2;
-
-        break;
-
     case 0x0A:
-        printf("Setting I register to value %x\n", opcode.nibbles_2_3_4);
+        // printf("Setting I register to value %x\n", opcode.nibbles_2_3_4);
         virtual_machine->index_register = opcode.nibbles_2_3_4;
 
         break;
+
+    case 0xB:
+        virtual_machine->pc = opcode.nibbles_2_3_4 + virtual_machine->v_registers[0];
+        break;
+
+    case 0xC: {
+        virtual_machine->v_registers[opcode.nibble_2] = rand() & opcode.byte_2;
+        break;
+    }
 
     case 0x0D: {
         uint8_t x = virtual_machine->v_registers[opcode.nibble_2] % screen_buffer->screen_width;
@@ -225,6 +310,95 @@ int process_opcode(VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer,
 
         break;
     }
+
+    case 0x0E: {
+        uint8_t requested_key = virtual_machine->v_registers[opcode.nibble_2];
+
+        if (opcode.byte_2 == 0x9E) {
+            // printf("REQUESTED CONDITIONAL 9E KEY: %d\n", requested_key);
+            // printf("GIVE KEY: %d\n", key_pressed);
+
+            if (*key_pressed == requested_key) {
+                virtual_machine->pc += 2;
+                *key_pressed = 100;
+            }
+        }
+
+        if (opcode.byte_2 == 0xA1) {
+
+            if (*key_pressed != requested_key) {
+                virtual_machine->pc += 2;
+            }
+        }
+        break;
+    }
+
+    case 0x0F:
+        switch (opcode.byte_2) {
+        case 0x07:
+            virtual_machine->v_registers[opcode.nibble_2] = virtual_machine->delay_timer;
+            break;
+
+        case 0x15:
+            virtual_machine->delay_timer = virtual_machine->v_registers[opcode.nibble_2];
+            break;
+
+        case 0x18:
+            virtual_machine->sound_timer= virtual_machine->v_registers[opcode.nibble_2];
+            break;
+
+        case 0x1E:
+            virtual_machine->index_register += virtual_machine->v_registers[opcode.nibble_2];
+            break;
+
+        case 0x0A:
+            //puts("REQUESTED KEY");
+
+            if (*key_pressed == 100) {
+                virtual_machine->pc -= 2;
+            } else {
+                virtual_machine->v_registers[opcode.nibble_2] = *key_pressed;
+            }
+
+            break;
+
+        case 0x29: {
+            uint8_t key = virtual_machine->v_registers[opcode.nibble_2];
+
+            // Multiply the key by the number of bytes each char takes in memory
+            virtual_machine->index_register = 80 / sizeof(virtual_machine->memory[0]) + key * 5;
+
+            break;
+        }
+
+        case 0x33: {
+            uint8_t register_1 = virtual_machine->v_registers[opcode.nibble_2];
+
+            virtual_machine->memory[virtual_machine->index_register] = register_1 / 100;
+            virtual_machine->memory[virtual_machine->index_register + 1] = (register_1 / 10) % 10;
+            virtual_machine->memory[virtual_machine->index_register + 2] = register_1 % 10;
+            break;
+        }
+
+        case 0x55:
+            puts("Saving all V registers to memory");
+            for (size_t i = 0; i <= opcode.nibble_2; i++) {
+                virtual_machine->memory[virtual_machine->index_register + i] = virtual_machine->v_registers[i];
+            }
+
+            virtual_machine->index_register += opcode.nibble_2 + 1;
+            break;
+
+        case 0x65:
+            puts("Dumping all V registers from memory");
+            for (size_t i = 0; i <= opcode.nibble_2; i++) {
+                virtual_machine->v_registers[i] = virtual_machine->memory[virtual_machine->index_register + i];
+            }
+
+            virtual_machine->index_register += opcode.nibble_2 + 1;
+            break;
+        }
+        break;
     }
 
     return 0;

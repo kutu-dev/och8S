@@ -73,7 +73,7 @@ Screen* create_screen(size_t screen_height, size_t screen_width)
     }
 
     SDL_Window* window = SDL_CreateWindow("och8S", SDL_WINDOWPOS_UNDEFINED,
-        SDL_WINDOWPOS_UNDEFINED, screen_width * 8, screen_height * 8, 0);
+        SDL_WINDOWPOS_UNDEFINED, screen_width, screen_height, 0);
     if (window == NULL) {
         log_error("Couldn't create window: %s");
         return NULL;
