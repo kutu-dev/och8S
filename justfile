@@ -17,4 +17,4 @@ run:
 # Check the linting and formatting of the project
 check:
   cppcheck src/
-  clang-format -i src/*
+  find src/*.c src/headers/*.h | xargs clang-format -i

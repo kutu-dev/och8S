@@ -6,6 +6,7 @@ project(
     'c_std=c18',
     'warning_level=3',
     'optimization=3',
+    'werror=true',
   ]
 )
 
