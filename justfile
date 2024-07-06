@@ -7,6 +7,7 @@ help:
 
 # Setup the build environment
 setup:
+  rm -rf build
   meson setup build
 
 # Compile and run och8S
@@ -17,4 +18,4 @@ run:
 # Check the linting and formatting of the project
 check:
   cppcheck src/
-  find src/*.c src/headers/*.h | xargs clang-format -i
+  find src/*.c include/*.h | xargs clang-format -i

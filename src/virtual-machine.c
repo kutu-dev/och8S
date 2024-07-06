@@ -76,7 +76,7 @@ struct VirtualMachine* create_virtual_machine()
 
     // Copy the font to the memory at `050` (80 bits)
     // TODO CHECK WITH HEX
-    memcpy(vm->memory + 80 / sizeof(vm->memory[0]), font_data, sizeof(font));
+    memcpy(vm->memory + 80 / sizeof(vm->memory[0]), font_data, sizeof(font_data));
 
     FILE* rom = fopen("rom.ch8", "rb");
 
@@ -86,17 +86,17 @@ struct VirtualMachine* create_virtual_machine()
     long size = ftell(rom);
     rewind(rom);
 
-    virtual_machine->wait_key = -2;
+    vm->wait_key = -2;
 
     // TODO CHECK WITH HEX
     // Copy the ROM offset to the address 200
-    size_t count = fread(virtual_machine->memory + 512 / sizeof(virtual_machine->memory[0]), sizeof(virtual_machine->memory[0]), size, rom);
+    size_t count = fread(vm->memory + 512 / sizeof(vm->memory[0]), sizeof(vm->memory[0]), size, rom);
 
     if (count != (size_t)size && ferror(rom) != 0) {
         puts("Reading rom failed!");
 
         free(vm);
-        virtual_machine = NULL;
+        vm = NULL;
     }
 
     fclose(rom);
@@ -104,11 +104,16 @@ struct VirtualMachine* create_virtual_machine()
     return vm;
 }
 
+/**
+ * @brief Step the cpu of the virtual machine one time.
+ *
+ * @param vm The virtual machine of whose cpu should be step.
+ * @param screen The screen where virtual machine state changes may be reflected.
+ * @return 
+ */
 uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 {
-    struct Opcode opcode = get_opcode(virtual_machine);
-
-    // printf("%x %x %x %x -- %x at %x\n", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.nibbles_2_3_4, virtual_machine->pc);
+    struct Opcode opcode = get_opcode(vm);
 
     vm->pc += 2;
 
@@ -117,13 +122,13 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         if (opcode.nibbles_2_3_4 == 0x0E0) {
             puts("Clearing the screen");
 
-            for (size_t y = 0; y <= screen_buffer->screen_height; y++) {
-                for (size_t x = 0; x <= screen_buffer->screen_width; x++) {
-                    screen_buffer->buffer[y][x] = false;
+            for (size_t y = 0; y <= screen->height; y++) {
+                for (size_t x = 0; x <= screen->width; x++) {
+                    screen->buffer[y][x] = false;
                 }
             }
 
-            if (draw_screen(screen_buffer, screen) != 0) {
+            if (draw_screen(screen) != 0) {
                 return 1;
             }
 
@@ -131,9 +136,9 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         }
 
         if (opcode.nibbles_2_3_4 == 0x0EE) {
-            virtual_machine->pc = virtual_machine->pc_stack[virtual_machine->pc_stack_index - 1];
-            printf("Jumping back to execution at %x, index: %ld\n", virtual_machine->pc, virtual_machine->pc_stack_index);
-            virtual_machine->pc_stack_index--;
+            vm->pc = vm->pc_stack[vm->pc_stack_index - 1];
+            printf("Jumping back to execution at %x, index: %ld\n", vm->pc, vm->pc_stack_index);
+            vm->pc_stack_index--;
 
             return 0;
         }
@@ -143,39 +148,39 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 
     case 0x01:
         // printf("Jumping to address %x\n", opcode.nibbles_2_3_4);
-        virtual_machine->pc = opcode.nibbles_2_3_4 / sizeof(virtual_machine->memory[0]);
+        vm->pc = opcode.nibbles_2_3_4 / sizeof(vm->memory[0]);
 
         break;
 
     case 0x02:
         // printf("Jumping to subroutine at %x\n", opcode.nibbles_2_3_4);
-        // printf("Sending to stack index: %ld with value %x\n", virtual_machine->pc_stack_index, virtual_machine->pc);
+        // printf("Sending to stack index: %ld with value %x\n", vm->pc_stack_index, vm->pc);
 
-        virtual_machine->pc_stack[virtual_machine->pc_stack_index] = virtual_machine->pc;
-        virtual_machine->pc_stack_index++;
+        vm->pc_stack[vm->pc_stack_index] = vm->pc;
+        vm->pc_stack_index++;
 
-        virtual_machine->pc = opcode.nibbles_2_3_4 / sizeof(virtual_machine->memory[0]);
+        vm->pc = opcode.nibbles_2_3_4 / sizeof(vm->memory[0]);
 
         break;
 
     case 0x03:
-        if (virtual_machine->v_registers[opcode.nibble_2] == opcode.byte_2) {
-            virtual_machine->pc += 2;
+        if (vm->v_registers[opcode.nibble_2] == opcode.byte_2) {
+            vm->pc += 2;
         }
         break;
 
     case 0x04:
-        if (virtual_machine->v_registers[opcode.nibble_2] != opcode.byte_2) {
-            virtual_machine->pc += 2;
+        if (vm->v_registers[opcode.nibble_2] != opcode.byte_2) {
+            vm->pc += 2;
         }
         break;
 
     case 0x05: {
-        uint8_t register_1 = virtual_machine->v_registers[opcode.nibble_2];
-        uint8_t register_2 = virtual_machine->v_registers[opcode.nibble_3];
+        uint8_t register_1 = vm->v_registers[opcode.nibble_2];
+        uint8_t register_2 = vm->v_registers[opcode.nibble_3];
 
         if (register_1 == register_2) {
-            virtual_machine->pc += 2;
+            vm->pc += 2;
         }
 
         break;
@@ -184,20 +189,20 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
     case 0x06:
         // printf("Setting register %x to value %x\n", opcode.nibble_2, opcode.byte_2);
 
-        virtual_machine->v_registers[opcode.nibble_2] = opcode.byte_2;
+        vm->v_registers[opcode.nibble_2] = opcode.byte_2;
 
         break;
 
     case 0x07:
         // printf("Adding %x to register %x\n", opcode.byte_2, opcode.nibble_2);
 
-        virtual_machine->v_registers[opcode.nibble_2] += opcode.byte_2;
+        vm->v_registers[opcode.nibble_2] += opcode.byte_2;
 
         break;
 
     case 0x08: {
-        uint8_t* register_1 = &(virtual_machine->v_registers[opcode.nibble_2]);
-        uint8_t* register_2 = &(virtual_machine->v_registers[opcode.nibble_3]);
+        uint8_t* register_1 = &(vm->v_registers[opcode.nibble_2]);
+        uint8_t* register_2 = &(vm->v_registers[opcode.nibble_3]);
 
         switch (opcode.nibble_4) {
         case 0:
@@ -205,15 +210,15 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
             break;
         case 1:
             *register_1 |= *register_2;
-            virtual_machine->v_registers[15] = 0;
+            vm->v_registers[15] = 0;
             break;
         case 2:
             *register_1 &= *register_2;
-            virtual_machine->v_registers[15] = 0;
+            vm->v_registers[15] = 0;
             break;
         case 3:
             *register_1 ^= *register_2;
-            virtual_machine->v_registers[15] = 0;
+            vm->v_registers[15] = 0;
             break;
         case 4: {
             uint8_t old_register_1 = *register_1;
@@ -222,9 +227,9 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 
             // Detect overflow
             if (*register_1 < old_register_1) {
-                virtual_machine->v_registers[15] = 1;
+                vm->v_registers[15] = 1;
             } else {
-                virtual_machine->v_registers[15] = 0;
+                vm->v_registers[15] = 0;
             }
 
             break;
@@ -235,9 +240,9 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
             *register_1 -= *register_2;
 
             if (underflow) {
-                virtual_machine->v_registers[15] = 1;
+                vm->v_registers[15] = 1;
             } else {
-                virtual_machine->v_registers[15] = 0;
+                vm->v_registers[15] = 0;
             }
             break;
         }
@@ -247,9 +252,9 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
             *register_1 = *register_2 - *register_1;
 
             if (underflow) {
-                virtual_machine->v_registers[15] = 1;
+                vm->v_registers[15] = 1;
             } else {
-                virtual_machine->v_registers[15] = 0;
+                vm->v_registers[15] = 0;
             }
             break;
         }
@@ -259,7 +264,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 
             *register_1 >>= 1;
 
-            virtual_machine->v_registers[15] = unshift_register_1 & 0x01;
+            vm->v_registers[15] = unshift_register_1 & 0x01;
             break;
         }
         case 0x0E: {
@@ -268,7 +273,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 
             *register_1 <<= 1;
 
-            virtual_machine->v_registers[15] = (unshift_register_1 & 0x80) >> 7;
+            vm->v_registers[15] = (unshift_register_1 & 0x80) >> 7;
             break;
         }
         }
@@ -276,11 +281,11 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
     }
 
     case 0x09: {
-        uint8_t register_1 = virtual_machine->v_registers[opcode.nibble_2];
-        uint8_t register_2 = virtual_machine->v_registers[opcode.nibble_3];
+        uint8_t register_1 = vm->v_registers[opcode.nibble_2];
+        uint8_t register_2 = vm->v_registers[opcode.nibble_3];
 
         if (register_1 != register_2) {
-            virtual_machine->pc += 2;
+            vm->pc += 2;
         }
 
         break;
@@ -288,36 +293,36 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 
     case 0x0A:
         // printf("Setting I register to value %x\n", opcode.nibbles_2_3_4);
-        virtual_machine->index_register = opcode.nibbles_2_3_4;
+        vm->index_register = opcode.nibbles_2_3_4;
 
         break;
 
     case 0xB:
-        virtual_machine->pc = opcode.nibbles_2_3_4 + virtual_machine->v_registers[0];
+        vm->pc = opcode.nibbles_2_3_4 + vm->v_registers[0];
         break;
 
     case 0xC: {
-        virtual_machine->v_registers[opcode.nibble_2] = rand() & opcode.byte_2;
+        vm->v_registers[opcode.nibble_2] = rand() & opcode.byte_2;
         break;
     }
 
     case 0x0D: {
-        uint8_t x = virtual_machine->v_registers[opcode.nibble_2] % screen_buffer->screen_width;
-        uint8_t y = virtual_machine->v_registers[opcode.nibble_3] % screen_buffer->screen_height;
+        uint8_t x = vm->v_registers[opcode.nibble_2] % screen->width;
+        uint8_t y = vm->v_registers[opcode.nibble_3] % screen->height;
 
-        virtual_machine->v_registers[15] = 0;
+        vm->v_registers[15] = 0;
 
-        for (size_t height = 0; height < opcode.nibble_4 && y + height < screen_buffer->screen_height; height++) {
-            uint8_t row_data = virtual_machine->memory[virtual_machine->index_register + height];
+        for (size_t height = 0; height < opcode.nibble_4 && y + height < screen->height; height++) {
+            uint8_t row_data = vm->memory[vm->index_register + height];
 
             int bit_pos = 0;
             while (bit_pos < 8) {
                 if (row_data & 0x80) {
-                    if (screen_buffer->buffer[y + height][x + bit_pos]) {
-                        virtual_machine->v_registers[15] = 1;
+                    if (screen->buffer[y + height][x + bit_pos]) {
+                        vm->v_registers[15] = 1;
                     }
 
-                    screen_buffer->buffer[y + height][x + bit_pos] = !screen_buffer->buffer[y + height][x + bit_pos];
+                    screen->buffer[y + height][x + bit_pos] = !screen->buffer[y + height][x + bit_pos];
                 }
 
                 row_data = row_data << 1;
@@ -326,7 +331,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         }
 
         printf("Drawing sprite at (%d, %d)\n", x, y);
-        if (draw_screen_buffer(screen_buffer, screen) != 0) {
+        if (draw_screen(screen) != 0) {
             return 1;
         }
 
@@ -334,19 +339,19 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
     }
 
     case 0x0E: {
-        uint8_t requested_key = virtual_machine->v_registers[opcode.nibble_2];
+        uint8_t requested_key = vm->v_registers[opcode.nibble_2];
         const uint8_t* pressed_keys = SDL_GetKeyboardState(NULL);
 
         if (opcode.byte_2 == 0x9E) {
             if (pressed_keys[chip8_key_to_sdl_scancode[requested_key]]) {
-                virtual_machine->pc += 2;
+                vm->pc += 2;
             }
         }
 
         if (opcode.byte_2 == 0xA1) {
 
             if (!pressed_keys[chip8_key_to_sdl_scancode[requested_key]]) {
-                virtual_machine->pc += 2;
+                vm->pc += 2;
             }
         }
         break;
@@ -355,73 +360,73 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
     case 0x0F:
         switch (opcode.byte_2) {
         case 0x07:
-            virtual_machine->v_registers[opcode.nibble_2] = virtual_machine->delay_timer;
+            vm->v_registers[opcode.nibble_2] = vm->delay_timer;
             break;
 
         case 0x15:
-            virtual_machine->delay_timer = virtual_machine->v_registers[opcode.nibble_2];
+            vm->delay_timer = vm->v_registers[opcode.nibble_2];
             break;
 
         case 0x18:
-            virtual_machine->sound_timer = virtual_machine->v_registers[opcode.nibble_2];
+            vm->sound_timer = vm->v_registers[opcode.nibble_2];
             break;
 
         case 0x1E:
-            virtual_machine->index_register += virtual_machine->v_registers[opcode.nibble_2];
+            vm->index_register += vm->v_registers[opcode.nibble_2];
             break;
 
         case 0x0A: {
-            if (virtual_machine->wait_key == -2) {
-                virtual_machine->wait_key = -1;
-                virtual_machine->pc -= 2;
+            if (vm->wait_key == -2) {
+                vm->wait_key = -1;
+                vm->pc -= 2;
                 break;
             }
 
-            if (virtual_machine->wait_key == -1) {
-                virtual_machine->pc -= 2;
+            if (vm->wait_key == -1) {
+                vm->pc -= 2;
                 break;
             }
 
-            virtual_machine->v_registers[opcode.nibble_2] = virtual_machine->wait_key;
-            virtual_machine->wait_key = -2;
+            vm->v_registers[opcode.nibble_2] = vm->wait_key;
+            vm->wait_key = -2;
 
             break;
         }
 
         case 0x29: {
-            uint8_t key = virtual_machine->v_registers[opcode.nibble_2];
+            uint8_t key = vm->v_registers[opcode.nibble_2];
 
             // Multiply the key by the number of bytes each char takes in memory
-            virtual_machine->index_register = 80 / sizeof(virtual_machine->memory[0]) + key * 5;
+            vm->index_register = 80 / sizeof(vm->memory[0]) + key * 5;
 
             break;
         }
 
         case 0x33: {
-            uint8_t register_1 = virtual_machine->v_registers[opcode.nibble_2];
+            uint8_t register_1 = vm->v_registers[opcode.nibble_2];
 
-            virtual_machine->memory[virtual_machine->index_register] = register_1 / 100;
-            virtual_machine->memory[virtual_machine->index_register + 1] = (register_1 / 10) % 10;
-            virtual_machine->memory[virtual_machine->index_register + 2] = register_1 % 10;
+            vm->memory[vm->index_register] = register_1 / 100;
+            vm->memory[vm->index_register + 1] = (register_1 / 10) % 10;
+            vm->memory[vm->index_register + 2] = register_1 % 10;
             break;
         }
 
         case 0x55:
             puts("Saving all V registers to memory");
             for (size_t i = 0; i <= opcode.nibble_2; i++) {
-                virtual_machine->memory[virtual_machine->index_register + i] = virtual_machine->v_registers[i];
+                vm->memory[vm->index_register + i] = vm->v_registers[i];
             }
 
-            virtual_machine->index_register += opcode.nibble_2 + 1;
+            vm->index_register += opcode.nibble_2 + 1;
             break;
 
         case 0x65:
             puts("Dumping all V registers from memory");
             for (size_t i = 0; i <= opcode.nibble_2; i++) {
-                virtual_machine->v_registers[i] = virtual_machine->memory[virtual_machine->index_register + i];
+                vm->v_registers[i] = vm->memory[vm->index_register + i];
             }
 
-            virtual_machine->index_register += opcode.nibble_2 + 1;
+            vm->index_register += opcode.nibble_2 + 1;
             break;
         }
         break;

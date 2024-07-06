@@ -3,7 +3,7 @@
 /**
  * @brief Maps a CHIP-8 key (the index of the array) with a SDL scancode (the value of the array).
  */
-constexpr uint8_t chip8_key_to_sdl_scancode[] = {
+uint8_t const chip8_key_to_sdl_scancode[] = {
     SDL_SCANCODE_X, // 0
     SDL_SCANCODE_1, // 1
     SDL_SCANCODE_2, // 2
