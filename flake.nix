@@ -24,7 +24,7 @@
           name = "och8S";
           nativeBuildInputs = with pkgs; [
             just
-            gcc
+            gcc14
             meson
             ninja
             SDL2

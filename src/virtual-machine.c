@@ -3,13 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "keys.h"
 #include "render.h"
 #include "virtual-machine.h"
 
-typedef struct VirtualMachine VirtualMachine;
-typedef struct Opcode Opcode;
+struct VirtualMachine;
+struct Opcode;
 
-static uint8_t font[16 * 5] = {
+static constexpr uint8_t font_data[] = {
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -28,70 +29,88 @@ static uint8_t font[16 * 5] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 };
 
-Opcode get_opcode(VirtualMachine* virtual_machine)
+/**
+ * @brief Parse the opcode located at the PC of the Virtual Machine.
+ *
+ * @param vm The virtual machine to get from it the memory and PC.
+ * @return The parsed opcode info.
+ */
+struct Opcode get_opcode(struct VirtualMachine* vm)
 {
-    Opcode opcode;
+    struct Opcode opcode;
 
-    opcode.nibble_1 = virtual_machine->memory[virtual_machine->pc] >> 4;
-    opcode.nibble_2 = virtual_machine->memory[virtual_machine->pc] & 0x0F;
+    opcode.nibble_1 = vm->memory[vm->pc] >> 4;
+    opcode.nibble_2 = vm->memory[vm->pc] & 0x0F;
 
-    opcode.byte_2 = virtual_machine->memory[virtual_machine->pc + 1];
+    opcode.byte_2 = vm->memory[vm->pc + 1];
 
-    opcode.nibble_3 = virtual_machine->memory[virtual_machine->pc + 1] >> 4;
-    opcode.nibble_4 = virtual_machine->memory[virtual_machine->pc + 1] & 0x0F;
+    opcode.nibble_3 = vm->memory[vm->pc + 1] >> 4;
+    opcode.nibble_4 = vm->memory[vm->pc + 1] & 0x0F;
 
     opcode.nibbles_2_3_4 = opcode.nibble_2 << 8 | opcode.byte_2;
 
     return opcode;
 }
 
-VirtualMachine* create_virtual_machine()
+/**
+ * @brief Create a new virtual machine.
+ *
+ * @return The created virtual machine. It can (and MUST) be deallocated after its use with `free()`.
+ */
+struct VirtualMachine* create_virtual_machine()
 {
-    VirtualMachine* virtual_machine = malloc(sizeof(VirtualMachine));
+    struct VirtualMachine* vm = malloc(sizeof(struct VirtualMachine));
 
-    if (virtual_machine == NULL) {
+    if (vm == NULL) {
+        // TODO CHECK LOGGING
         puts("Malloc 'virtual_machine' failed!");
         return NULL;
     }
 
     // Clear the memory region of the virtual machine
-    memset(virtual_machine, 0, sizeof(VirtualMachine));
+    memset(vm, 0, sizeof(struct VirtualMachine));
 
     // Offset the PC the reserved memory region for VM data
-    virtual_machine->pc = 512 / sizeof(virtual_machine->memory[0]);
+    // TODO CHECK WITH HEX
+    vm->pc = 512 / sizeof(vm->memory[0]);
 
     // Copy the font to the memory at `050` (80 bits)
-    memcpy(virtual_machine->memory + 80 / sizeof(virtual_machine->memory[0]), font, sizeof(font));
+    // TODO CHECK WITH HEX
+    memcpy(vm->memory + 80 / sizeof(vm->memory[0]), font_data, sizeof(font));
 
     FILE* rom = fopen("rom.ch8", "rb");
 
     // Get the size of the file in bytes
     fseek(rom, 0, SEEK_END);
+    // TODO CHECK AND FIX TYPE (AVOID CAST BELOW)
     long size = ftell(rom);
     rewind(rom);
 
+    virtual_machine->wait_key = -2;
+
+    // TODO CHECK WITH HEX
     // Copy the ROM offset to the address 200
     size_t count = fread(virtual_machine->memory + 512 / sizeof(virtual_machine->memory[0]), sizeof(virtual_machine->memory[0]), size, rom);
 
     if (count != (size_t)size && ferror(rom) != 0) {
         puts("Reading rom failed!");
 
-        free(virtual_machine);
+        free(vm);
         virtual_machine = NULL;
     }
 
     fclose(rom);
 
-    return virtual_machine;
+    return vm;
 }
 
-int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, ScreenBuffer* screen_buffer, Screen* screen)
+uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 {
-    Opcode opcode = get_opcode(virtual_machine);
+    struct Opcode opcode = get_opcode(virtual_machine);
 
-    //printf("%x %x %x %x -- %x at %x\n", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.nibbles_2_3_4, virtual_machine->pc);
+    // printf("%x %x %x %x -- %x at %x\n", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.nibbles_2_3_4, virtual_machine->pc);
 
-    virtual_machine->pc += 2;
+    vm->pc += 2;
 
     switch (opcode.nibble_1) {
     case 0x00:
@@ -104,7 +123,7 @@ int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, Screen
                 }
             }
 
-            if (draw_screen_buffer(screen_buffer, screen) != 0) {
+            if (draw_screen(screen_buffer, screen) != 0) {
                 return 1;
             }
 
@@ -186,12 +205,15 @@ int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, Screen
             break;
         case 1:
             *register_1 |= *register_2;
+            virtual_machine->v_registers[15] = 0;
             break;
         case 2:
             *register_1 &= *register_2;
+            virtual_machine->v_registers[15] = 0;
             break;
         case 3:
             *register_1 ^= *register_2;
+            virtual_machine->v_registers[15] = 0;
             break;
         case 4: {
             uint8_t old_register_1 = *register_1;
@@ -285,7 +307,7 @@ int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, Screen
 
         virtual_machine->v_registers[15] = 0;
 
-        for (size_t height = 0; height < opcode.nibble_4; height++) {
+        for (size_t height = 0; height < opcode.nibble_4 && y + height < screen_buffer->screen_height; height++) {
             uint8_t row_data = virtual_machine->memory[virtual_machine->index_register + height];
 
             int bit_pos = 0;
@@ -313,20 +335,17 @@ int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, Screen
 
     case 0x0E: {
         uint8_t requested_key = virtual_machine->v_registers[opcode.nibble_2];
+        const uint8_t* pressed_keys = SDL_GetKeyboardState(NULL);
 
         if (opcode.byte_2 == 0x9E) {
-            // printf("REQUESTED CONDITIONAL 9E KEY: %d\n", requested_key);
-            // printf("GIVE KEY: %d\n", key_pressed);
-
-            if (*key_pressed == requested_key) {
+            if (pressed_keys[chip8_key_to_sdl_scancode[requested_key]]) {
                 virtual_machine->pc += 2;
-                *key_pressed = 100;
             }
         }
 
         if (opcode.byte_2 == 0xA1) {
 
-            if (*key_pressed != requested_key) {
+            if (!pressed_keys[chip8_key_to_sdl_scancode[requested_key]]) {
                 virtual_machine->pc += 2;
             }
         }
@@ -344,23 +363,30 @@ int process_opcode(uint8_t* key_pressed, VirtualMachine* virtual_machine, Screen
             break;
 
         case 0x18:
-            virtual_machine->sound_timer= virtual_machine->v_registers[opcode.nibble_2];
+            virtual_machine->sound_timer = virtual_machine->v_registers[opcode.nibble_2];
             break;
 
         case 0x1E:
             virtual_machine->index_register += virtual_machine->v_registers[opcode.nibble_2];
             break;
 
-        case 0x0A:
-            //puts("REQUESTED KEY");
-
-            if (*key_pressed == 100) {
+        case 0x0A: {
+            if (virtual_machine->wait_key == -2) {
+                virtual_machine->wait_key = -1;
                 virtual_machine->pc -= 2;
-            } else {
-                virtual_machine->v_registers[opcode.nibble_2] = *key_pressed;
+                break;
             }
 
+            if (virtual_machine->wait_key == -1) {
+                virtual_machine->pc -= 2;
+                break;
+            }
+
+            virtual_machine->v_registers[opcode.nibble_2] = virtual_machine->wait_key;
+            virtual_machine->wait_key = -2;
+
             break;
+        }
 
         case 0x29: {
             uint8_t key = virtual_machine->v_registers[opcode.nibble_2];
