@@ -1,8 +1,6 @@
 # TODO
 
-- Move `src/headers` to `./include`.
-- Fix quirks test, remember!: The screen shows you if the following quirks are detected as active ("on", "off" or an error) and if that matches your chosen target platform (a checkmark or a cross).
+- Finish `opcode_0()` function (remember logging! and docs?).
+- Improve `step_cpu()` function (logging and docs?).
 - Correctly handle passing over the limits of the screen.
-- Fix [timing](https://tobiasvl.github.io/blog/write-a-chip-8-emulator/#timing).
 - Add sound.
-- Change `puts` to a proper logging system.

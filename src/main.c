@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "keys.h"
+#include "logging.h"
 #include "render.h"
 #include "virtual-machine.h"
 
@@ -18,8 +19,7 @@ uint64_t get_microsecond_timestamp()
     struct timespec timestamp;
 
     if (timespec_get(&timestamp, TIME_UTC) == 0) {
-        // TODO: LOGGING
-        printf("ERROR: Can't get timestamp");
+        error("Can't get timestamp");
         return 0;
     }
 
@@ -28,19 +28,30 @@ uint64_t get_microsecond_timestamp()
 
 int main()
 {
+    uint16_t opcodes_per_second = 700;
+
+    info("Welcome to och8S emulator!");
+    info("CPU Clock: %ldHz", opcodes_per_second);
+
     srand(time(NULL));
 
     struct Screen* screen = create_screen(32, 64);
     if (screen == NULL) {
         return 1;
     }
+    
+    debug("Screen created");
 
     draw_screen(screen);
+
+    puts("DRAW");
 
     struct VirtualMachine* vm = create_virtual_machine();
     if (vm == NULL) {
         return 1;
     }
+
+    debug("Virtual machine created");
 
     uint64_t cpu_old_time = get_microsecond_timestamp();
     if (cpu_old_time == 0) {
@@ -52,8 +63,11 @@ int main()
         return 1;
     }
 
+    debug("Timers set");
+
     bool quit = false;
 
+    // Start of the mainloop
     while (!quit) {
         uint64_t cpu_new_time = get_microsecond_timestamp();
         if (cpu_new_time == 0) {
@@ -68,7 +82,7 @@ int main()
         uint64_t cpu_delta = cpu_new_time - cpu_old_time;
         uint64_t timers_delta = timers_new_time - timers_old_time;
 
-        if (timers_delta >= 17000) {
+        if (timers_delta >= 1.0 / 60.0 * 1000000) {
             if (vm->delay_timer > 0) {
                 vm->delay_timer--;
             }
@@ -97,7 +111,8 @@ int main()
             }
         }
 
-        if (cpu_delta >= 1400) {
+        if (cpu_delta >= (1.0 / opcodes_per_second) * 1000000) {
+            //debug("Stepping CPU");
             if (step_cpu(vm, screen) != 0) {
                 return 1;
             }

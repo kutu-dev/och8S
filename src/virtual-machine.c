@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "keys.h"
+#include "logging.h"
 #include "render.h"
 #include "virtual-machine.h"
 
@@ -62,35 +63,29 @@ struct VirtualMachine* create_virtual_machine()
     struct VirtualMachine* vm = malloc(sizeof(struct VirtualMachine));
 
     if (vm == NULL) {
-        // TODO CHECK LOGGING
-        puts("Malloc 'virtual_machine' failed!");
+        error("Malloc 'vm' failed");
         return NULL;
     }
+
+    puts("VM");
 
     // Clear the memory region of the virtual machine
     memset(vm, 0, sizeof(struct VirtualMachine));
 
-    // Offset the PC the reserved memory region for VM data
-    // TODO CHECK WITH HEX
-    vm->pc = 512 / sizeof(vm->memory[0]);
+    vm->pc = 0x200;
 
-    // Copy the font to the memory at `050` (80 bits)
-    // TODO CHECK WITH HEX
-    memcpy(vm->memory + 80 / sizeof(vm->memory[0]), font_data, sizeof(font_data));
+    memcpy(vm->memory + 0x050, font_data, sizeof(font_data));
 
     FILE* rom = fopen("rom.ch8", "rb");
 
     // Get the size of the file in bytes
     fseek(rom, 0, SEEK_END);
-    // TODO CHECK AND FIX TYPE (AVOID CAST BELOW)
     long size = ftell(rom);
     rewind(rom);
 
     vm->wait_key = -2;
 
-    // TODO CHECK WITH HEX
-    // Copy the ROM offset to the address 200
-    size_t count = fread(vm->memory + 512 / sizeof(vm->memory[0]), sizeof(vm->memory[0]), size, rom);
+    size_t count = fread(vm->memory + 0x200, sizeof(vm->memory[0]), size, rom);
 
     if (count != (size_t)size && ferror(rom) != 0) {
         puts("Reading rom failed!");
@@ -104,46 +99,57 @@ struct VirtualMachine* create_virtual_machine()
     return vm;
 }
 
+uint8_t opcode_0(struct Opcode opcode, struct VirtualMachine* vm, struct Screen* screen)
+{
+    if (opcode.nibbles_2_3_4 == 0x0E0) {
+        // puts("Clearing the screen");
+
+        for (size_t y = 0; y < screen->height; y++) {
+            for (size_t x = 0; x < screen->width; x++) {
+                screen->buffer[y][x] = false;
+            }
+        }
+
+        if (draw_screen(screen) != 0) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    if (opcode.nibbles_2_3_4 == 0x0EE) {
+        vm->pc = vm->pc_stack[vm->pc_stack_index - 1];
+        // printf("Jumping back to execution at %x, index: %ld\n", vm->pc, vm->pc_stack_index);
+        vm->pc_stack_index--;
+
+        return 0;
+    }
+
+    puts("Execute machine language routine detected, skipping it");
+    return 0;
+}
+
 /**
  * @brief Step the cpu of the virtual machine one time.
  *
  * @param vm The virtual machine of whose cpu should be step.
  * @param screen The screen where virtual machine state changes may be reflected.
- * @return 
+ * @return
  */
 uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
 {
     struct Opcode opcode = get_opcode(vm);
-
     vm->pc += 2;
+
+    //debug("OPCODE: %x", opcode.nibble_2);
+
 
     switch (opcode.nibble_1) {
     case 0x00:
-        if (opcode.nibbles_2_3_4 == 0x0E0) {
-            puts("Clearing the screen");
-
-            for (size_t y = 0; y <= screen->height; y++) {
-                for (size_t x = 0; x <= screen->width; x++) {
-                    screen->buffer[y][x] = false;
-                }
-            }
-
-            if (draw_screen(screen) != 0) {
-                return 1;
-            }
-
-            return 0;
+        if (opcode_0(opcode, vm, screen) != 0) {
+            return 1;
         }
 
-        if (opcode.nibbles_2_3_4 == 0x0EE) {
-            vm->pc = vm->pc_stack[vm->pc_stack_index - 1];
-            printf("Jumping back to execution at %x, index: %ld\n", vm->pc, vm->pc_stack_index);
-            vm->pc_stack_index--;
-
-            return 0;
-        }
-
-        puts("Execute machine language routine detected, skipping it");
         break;
 
     case 0x01:
@@ -318,6 +324,11 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
             int bit_pos = 0;
             while (bit_pos < 8) {
                 if (row_data & 0x80) {
+                  if (x + bit_pos >= screen->width) {
+                    bit_pos = 8;
+                    continue;
+                  }
+
                     if (screen->buffer[y + height][x + bit_pos]) {
                         vm->v_registers[15] = 1;
                     }
@@ -330,7 +341,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
             }
         }
 
-        printf("Drawing sprite at (%d, %d)\n", x, y);
+        // printf("Drawing sprite at (%d, %d)\n", x, y);
         if (draw_screen(screen) != 0) {
             return 1;
         }
@@ -412,7 +423,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         }
 
         case 0x55:
-            puts("Saving all V registers to memory");
+            // puts("Saving all V registers to memory");
             for (size_t i = 0; i <= opcode.nibble_2; i++) {
                 vm->memory[vm->index_register + i] = vm->v_registers[i];
             }
@@ -421,7 +432,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
             break;
 
         case 0x65:
-            puts("Dumping all V registers from memory");
+            // puts("Dumping all V registers from memory");
             for (size_t i = 0; i <= opcode.nibble_2; i++) {
                 vm->v_registers[i] = vm->memory[vm->index_register + i];
             }

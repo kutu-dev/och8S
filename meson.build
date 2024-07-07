@@ -5,7 +5,7 @@ project(
   default_options : [
     'c_std=c23',
     'warning_level=3',
-    'optimization=3',
+    'optimization=0',
     ##'werror=true',
   ]
 )

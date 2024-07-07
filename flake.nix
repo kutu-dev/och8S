@@ -30,6 +30,8 @@
             SDL2
             cppcheck
             clang-tools
+            ripgrep
+            glow
           ];
         };
       });

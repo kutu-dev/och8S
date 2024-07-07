@@ -19,3 +19,8 @@ run:
 check:
   cppcheck src/
   find src/*.c include/*.h | xargs clang-format -i
+
+# See all the things that need to be done
+todo:
+  glow TODO.md
+  rg TODO
