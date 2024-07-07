@@ -14,8 +14,6 @@ struct Screen;
  */
 uint8_t clear_renderer(SDL_Renderer* renderer)
 {
-    debug("Clearing render");  
-
     if (SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0xFF) != 0) {
         error("Couldn't set the draw color: %s", SDL_GetError());
         return 1;

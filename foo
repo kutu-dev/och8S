@@ -1,2 +1,0 @@
-meson compile -C build
-error: Recipe `run` failed on line 15 with exit code 1

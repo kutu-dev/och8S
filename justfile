@@ -17,7 +17,7 @@ run:
 
 # Check the linting and formatting of the project
 check:
-  cppcheck src/
+  cppcheck src/ --check-level=exhaustive
   find src/*.c include/*.h | xargs clang-format -i
 
 # See all the things that need to be done

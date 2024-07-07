@@ -39,12 +39,10 @@ int main()
     if (screen == NULL) {
         return 1;
     }
-    
+
     debug("Screen created");
 
     draw_screen(screen);
-
-    puts("DRAW");
 
     struct VirtualMachine* vm = create_virtual_machine();
     if (vm == NULL) {
@@ -67,8 +65,10 @@ int main()
 
     bool quit = false;
 
+    debug("Starting the mainloop");
     // Start of the mainloop
     while (!quit) {
+
         uint64_t cpu_new_time = get_microsecond_timestamp();
         if (cpu_new_time == 0) {
             return 1;
@@ -97,6 +97,7 @@ int main()
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
+                debug("Quit event detected, closing the emulator");
                 quit = true;
             }
 
@@ -111,8 +112,8 @@ int main()
             }
         }
 
+        getchar();
         if (cpu_delta >= (1.0 / opcodes_per_second) * 1000000) {
-            //debug("Stepping CPU");
             if (step_cpu(vm, screen) != 0) {
                 return 1;
             }
@@ -124,5 +125,9 @@ int main()
     }
 
     delete_screen(screen);
+    debug("Deallocated the screen");
+
     free(vm);
+    debug("Deallocated the virtual machine");
+    info("Goodbye!");
 }

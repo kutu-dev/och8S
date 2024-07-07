@@ -1,4 +1,4 @@
-sources = files('main.c', 'render.c', 'virtual-machine.c', 'keys.c', 'logging.c', 'configuration.c')
+sources = files('main.c', 'render.c', 'virtual-machine.c', 'keys.c', 'logging.c', 'opcodes.c')
 
 exe = executable(
   'och8S',
