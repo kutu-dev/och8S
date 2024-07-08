@@ -51,27 +51,37 @@ struct VirtualMachine* create_virtual_machine()
 
     vm->pc = 0x200;
 
-    memcpy(vm->memory + 0x050, font_data, sizeof(font_data));
+    memcpy(vm->memory + 0x50, font_data, sizeof(font_data));
 
     FILE* rom = fopen("rom.ch8", "rb");
 
     // Get the size of the file in bytes
     fseek(rom, 0, SEEK_END);
-    long size = ftell(rom);
+    size_t size = (size_t)ftell(rom);
     rewind(rom);
 
-    vm->wait_key = -2;
+    if (size > sizeof(vm->memory) - 0x200) {
+      error("ROM size too big for the memory! Are you sure it is valid for this system?");
+      goto rom_size_too_big;
+    }
 
     size_t count = fread(vm->memory + 0x200, sizeof(vm->memory[0]), size, rom);
 
-    if (count != (size_t)size && ferror(rom) != 0) {
+    if (count != size && ferror(rom) != 0) {
         error("Reading rom failed!");
-
-        free(vm);
-        vm = NULL;
+        goto read_rom_failed;
     }
 
     fclose(rom);
+
+    vm->wait_key = -2;
+
+    return vm;
+
+  rom_size_too_big:
+  read_rom_failed:
+    free(vm);
+    vm = NULL;
 
     return vm;
 }
@@ -111,7 +121,7 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
     struct Opcode opcode = get_opcode(vm);
     vm->pc += 2;
 
-    // debug("Opcode: %x, X: %x, Y: %x, N: %x, NN: %02x, NNN: %03x", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.byte_2, opcode.nibbles_2_3_4);
+    debug("Opcode: %x, X: %x, Y: %x, N: %x, NN: %02x, NNN: %03x", opcode.nibble_1, opcode.nibble_2, opcode.nibble_3, opcode.nibble_4, opcode.byte_2, opcode.nibbles_2_3_4);
 
     switch (opcode.nibble_1) {
     case 0x0:
@@ -203,14 +213,17 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         const uint8_t* pressed_keys = SDL_GetKeyboardState(NULL);
 
         if (opcode.byte_2 == 0x9E) {
+            debug("If key '%x' is being pressed skip", requested_key);
             if (pressed_keys[chip8_key_to_sdl_scancode[requested_key]]) {
+                debug("Skipped");
                 vm->pc += 2;
             }
         }
 
         if (opcode.byte_2 == 0xA1) {
-
+            debug("If key '%x' is not being pressed skip", requested_key);
             if (!pressed_keys[chip8_key_to_sdl_scancode[requested_key]]) {
+                debug("Skipped");
                 vm->pc += 2;
             }
         }
@@ -218,79 +231,13 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
     }
 
     case 0x0F:
-        switch (opcode.byte_2) {
-        case 0x07:
-            vm->v_registers[opcode.nibble_2] = vm->delay_timer;
-            break;
-
-        case 0x15:
-            vm->delay_timer = vm->v_registers[opcode.nibble_2];
-            break;
-
-        case 0x18:
-            vm->sound_timer = vm->v_registers[opcode.nibble_2];
-            break;
-
-        case 0x1E:
-            vm->index_register += vm->v_registers[opcode.nibble_2];
-            break;
-
-        case 0x0A: {
-            if (vm->wait_key == -2) {
-                vm->wait_key = -1;
-                vm->pc -= 2;
-                break;
-            }
-
-            if (vm->wait_key == -1) {
-                vm->pc -= 2;
-                break;
-            }
-
-            vm->v_registers[opcode.nibble_2] = vm->wait_key;
-            vm->wait_key = -2;
-
-            break;
-        }
-
-        case 0x29: {
-            uint8_t key = vm->v_registers[opcode.nibble_2];
-
-            // Multiply the key by the number of bytes each char takes in memory
-            vm->index_register = 80 / sizeof(vm->memory[0]) + key * 5;
-
-            break;
-        }
-
-        case 0x33: {
-            uint8_t register_1 = vm->v_registers[opcode.nibble_2];
-
-            vm->memory[vm->index_register] = register_1 / 100;
-            vm->memory[vm->index_register + 1] = (register_1 / 10) % 10;
-            vm->memory[vm->index_register + 2] = register_1 % 10;
-            break;
-        }
-
-        case 0x55:
-            // puts("Saving all V registers to memory");
-            for (size_t i = 0; i <= opcode.nibble_2; i++) {
-                vm->memory[vm->index_register + i] = vm->v_registers[i];
-            }
-
-            vm->index_register += opcode.nibble_2 + 1;
-            break;
-
-        case 0x65:
-            // puts("Dumping all V registers from memory");
-            for (size_t i = 0; i <= opcode.nibble_2; i++) {
-                vm->v_registers[i] = vm->memory[vm->index_register + i];
-            }
-
-            vm->index_register += opcode.nibble_2 + 1;
-            break;
-        }
+        opcode_f(opcode, vm);
         break;
-    }
 
+    default:
+      debug("Unknown opcode, reading data from the ROM?");
+      break;
+    }
     return 0;
+
 }

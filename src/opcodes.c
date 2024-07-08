@@ -5,14 +5,6 @@
 #include "opcodes.h"
 #include "virtual-machine.h"
 
-/**
- * @brief Process the opcode 0.
- *
- * @param opcode The data of the opcode.
- * @param vm The virtual machine to be the changes applied.
- * @param screen The screen to may be cleaned.
- * @return
- */
 uint8_t opcode_0(struct Opcode opcode, struct VirtualMachine* vm, struct Screen* screen)
 {
     switch (opcode.nibbles_2_3_4) {
@@ -173,7 +165,9 @@ uint8_t opcode_d(struct Opcode opcode, struct VirtualMachine* vm, struct Screen*
     uint8_t x = vm->v_registers[opcode.nibble_2] % screen->width;
     uint8_t y = vm->v_registers[opcode.nibble_3] % screen->height;
 
-    vm->v_registers[15] = 0;
+    debug("Drawing sprite at (%d, %d)", x, y);
+
+    uint8_t vf_register_value = 0;
 
     for (size_t height = 0; height < opcode.nibble_4 && y + height < screen->height; height++) {
         uint8_t row_data = vm->memory[vm->index_register + height];
@@ -181,13 +175,16 @@ uint8_t opcode_d(struct Opcode opcode, struct VirtualMachine* vm, struct Screen*
         int bit_pos = 0;
         while (bit_pos < 8) {
             if (row_data & 0x80) {
+                // If the next pixel is over the right of the screen just clip it
                 if ((size_t)(x + bit_pos) >= screen->width) {
                     bit_pos = 8;
                     continue;
                 }
 
+                // If originally the pixel was on set to vF that it was set off
                 if (screen->buffer[y + height][x + bit_pos]) {
-                    vm->v_registers[15] = 1;
+                    debug("Pixel that was on set off, setting vf flag");
+                    vf_register_value = 1;
                 }
 
                 screen->buffer[y + height][x + bit_pos] = !screen->buffer[y + height][x + bit_pos];
@@ -198,10 +195,100 @@ uint8_t opcode_d(struct Opcode opcode, struct VirtualMachine* vm, struct Screen*
         }
     }
 
-    // printf("Drawing sprite at (%d, %d)\n", x, y);
+    vm->v_registers[15] = vf_register_value;
+
     if (draw_screen(screen) != 0) {
         return 1;
     }
 
     return 0;
+}
+
+void opcode_f(struct Opcode opcode, struct VirtualMachine* vm)
+{
+    switch (opcode.byte_2) {
+    case 0x07:
+        debug("Setting v%d to %d (delay timer)", opcode.nibble_2, vm->delay_timer);
+        vm->v_registers[opcode.nibble_2] = vm->delay_timer;
+        break;
+
+    case 0x15:
+        debug("Setting the delay timer equal to v%d", opcode.nibble_2);
+        vm->delay_timer = vm->v_registers[opcode.nibble_2];
+        break;
+
+    case 0x18:
+        debug("Setting the sound timer equal to v%d", opcode.nibble_2);
+        vm->sound_timer = vm->v_registers[opcode.nibble_2];
+        break;
+
+    case 0x1E:
+        debug("Adding v%d to the register i", opcode.nibble_2);
+        vm->index_register += vm->v_registers[opcode.nibble_2];
+        break;
+
+    case 0x0A: {
+        if (vm->wait_key == -2) {
+            debug("Waiting to key to be pressed");
+
+            vm->wait_key = -1;
+            vm->pc -= 2;
+
+            return;
+        }
+
+        if (vm->wait_key == -1) {
+            vm->pc -= 2;
+
+            return;
+        }
+
+        vm->v_registers[opcode.nibble_2] = vm->wait_key;
+        vm->wait_key = -2;
+
+        break;
+    }
+
+    case 0x29: {
+        uint8_t character = vm->v_registers[opcode.nibble_2];
+
+        debug("Pointing the register i to the character %x", character);
+
+
+        // Multiply the key by the number of bytes each int takes in memory
+        // TODO: Check with this is multiplied
+        vm->index_register = 0x50 + character * 5;
+
+        break;
+    }
+
+    case 0x33: {
+        uint8_t register_1 = vm->v_registers[opcode.nibble_2];
+
+        debug("Converting binary number %b to decimal", register_1);
+
+        vm->memory[vm->index_register] = register_1 / 100;
+        vm->memory[vm->index_register + 1] = (register_1 / 10) % 10;
+        vm->memory[vm->index_register + 2] = register_1 % 10;
+        break;
+    }
+
+    case 0x55:
+        puts("Saving all registers v to memory");
+        for (size_t i = 0; i <= opcode.nibble_2; i++) {
+            vm->memory[vm->index_register + i] = vm->v_registers[i];
+        }
+
+        vm->index_register += opcode.nibble_2 + 1;
+        break;
+
+    case 0x65:
+        puts("Loading all registers v from memory");
+        for (size_t i = 0; i <= opcode.nibble_2; i++) {
+            vm->v_registers[i] = vm->memory[vm->index_register + i];
+        }
+
+        vm->index_register += opcode.nibble_2 + 1;
+        break;
+    }
 }

@@ -46,19 +46,19 @@ int main()
 
     struct VirtualMachine* vm = create_virtual_machine();
     if (vm == NULL) {
-        return 1;
+        goto virtual_machine_failed;
     }
 
     debug("Virtual machine created");
 
     uint64_t cpu_old_time = get_microsecond_timestamp();
     if (cpu_old_time == 0) {
-        return 1;
+        goto cpu_old_time_failed;
     }
 
     uint64_t timers_old_time = get_microsecond_timestamp();
     if (timers_old_time == 0) {
-        return 1;
+        goto timers_old_time_failed;
     }
 
     debug("Timers set");
@@ -66,17 +66,17 @@ int main()
     bool quit = false;
 
     debug("Starting the mainloop");
-    // Start of the mainloop
     while (!quit) {
+        puts("\a");
 
         uint64_t cpu_new_time = get_microsecond_timestamp();
         if (cpu_new_time == 0) {
-            return 1;
+            goto cpu_new_time_failed;
         }
 
         uint64_t timers_new_time = get_microsecond_timestamp();
         if (timers_new_time == 0) {
-            return 1;
+            goto timers_new_time_failed;
         }
 
         uint64_t cpu_delta = cpu_new_time - cpu_old_time;
@@ -112,10 +112,10 @@ int main()
             }
         }
 
-        getchar();
+        // getchar();
         if (cpu_delta >= (1.0 / opcodes_per_second) * 1000000) {
             if (step_cpu(vm, screen) != 0) {
-                return 1;
+                goto step_cpu_failed;
             }
 
             cpu_old_time = cpu_new_time;
@@ -130,4 +130,19 @@ int main()
     free(vm);
     debug("Deallocated the virtual machine");
     info("Goodbye!");
+    
+    return 0;
+
+step_cpu_failed:
+cpu_new_time_failed:
+timers_new_time_failed:
+cpu_old_time_failed:
+timers_old_time_failed:
+    free(vm);
+    debug("Deallocated the virtual machine");
+virtual_machine_failed:
+    delete_screen(screen);
+    debug("Deallocated the screen");
+
+    return 1;
 }

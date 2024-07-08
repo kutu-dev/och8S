@@ -93,6 +93,7 @@ uint8_t draw_screen(struct Screen* screen)
  */
 struct Screen* create_screen(size_t screen_height, size_t screen_width)
 {
+    // TODO Reduce subsystems initialized (remember to also test it on macOS)
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         error("Cound't initialze SDL: %s", SDL_GetError());
         return NULL;

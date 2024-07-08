@@ -16,4 +16,6 @@ void opcode_8(struct Opcode opcode, struct VirtualMachine* vm);
 
 uint8_t opcode_d(struct Opcode opcode, struct VirtualMachine* vm, struct Screen* screen);
 
+void opcode_f(struct Opcode opcode, struct VirtualMachine* vm);
+
 #endif
