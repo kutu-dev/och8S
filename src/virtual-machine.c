@@ -34,9 +34,11 @@ static constexpr uint8_t font_data[] = {
 /**
  * @brief Create a new virtual machine.
  *
+ * @param rom_path The path to the ROM to the loaded.
+ *
  * @return The created virtual machine. It can (and MUST) be deallocated after its use with `free()`.
  */
-struct VirtualMachine* create_virtual_machine()
+struct VirtualMachine* create_virtual_machine(char* rom_path)
 {
     struct VirtualMachine* vm = malloc(sizeof(struct VirtualMachine));
 
@@ -53,7 +55,7 @@ struct VirtualMachine* create_virtual_machine()
 
     memcpy(vm->memory + 0x50, font_data, sizeof(font_data));
 
-    FILE* rom = fopen("rom.ch8", "rb");
+    FILE* rom = fopen(rom_path, "rb");
 
     // Get the size of the file in bytes
     fseek(rom, 0, SEEK_END);

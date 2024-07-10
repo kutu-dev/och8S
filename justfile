@@ -1,5 +1,5 @@
 # Default recipe of the justfile
-default: run
+default rom: (run rom)
 
 # Show this info message
 help:
@@ -10,10 +10,17 @@ setup:
   rm -rf build
   meson setup build
 
-# Compile and run och8S
-run:
+
+# Compile och8S
+compile:
   meson compile -C build
-  build/src/och8S
+
+# Compile and run och8S
+run rom: compile
+  build/src/och8S {{rom}}
+
+debug rom: compile
+  build/src/och8S -ds {{rom}}
 
 # Check the linting and formatting of the project
 check:

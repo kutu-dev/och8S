@@ -28,8 +28,46 @@ uint64_t get_microsecond_timestamp()
     return timestamp.tv_sec * 100000 + timestamp.tv_nsec / 1000;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    char* rom_path = NULL;
+    bool manual_step = false;
+
+    while (optind < argc) {
+        int option = getopt(argc, argv, "ds");
+
+        if (option == -1)
+        {
+          rom_path = argv[optind];
+          
+          optind++;
+          continue;
+        }
+
+        switch (option) {
+        case 'd':
+            debug_enable = true;
+            break;
+        case 's':
+            manual_step = true;
+            break;
+        default:
+            error("Unknown option");
+
+            return 1;
+            break;
+        }
+    }
+
+    if (rom_path == NULL) {
+      error("Missing ROM path");
+      return 1;
+    }
+
+    if (manual_step) {
+      warning("Manual step is enabled, press ENTER on the terminal to step once the CPU");
+    }
+
     // TODO Reduce subsystems initialized (remember to also test it on macOS)
     if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
         error("Cound't initialze SDL: %s", SDL_GetError());
@@ -57,7 +95,7 @@ int main()
 
     draw_screen(screen);
 
-    struct VirtualMachine* vm = create_virtual_machine();
+    struct VirtualMachine* vm = create_virtual_machine(rom_path);
     if (vm == NULL) {
         goto virtual_machine_failed;
     }
@@ -145,7 +183,10 @@ int main()
             }
         }
 
-        //getchar();
+        if (manual_step) {
+          getchar();
+        }
+    
         if (cpu_delta >= (1.0 / opcodes_per_second) * 1000000) {
             if (step_cpu(vm, screen) != 0) {
                 goto step_cpu_failed;

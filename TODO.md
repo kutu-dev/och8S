@@ -1,9 +1,6 @@
 # TODO
 
 # Sure
-- Remove hardcoded rom path.
-- Debug mode.
-- Step by step.
 - Check todo in code.
 
 # Maybe (Broader scope, put in more interesting to least interesting)

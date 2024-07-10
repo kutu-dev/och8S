@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
 
-#include "save-state.h"
 #include "logging.h"
 #include "render.h"
+#include "save-state.h"
 #include "virtual-machine.h"
 
 /**
@@ -10,17 +10,18 @@
  *
  * @return A pointer to the path where the savestate is located. It should be `freed` after its use.
  */
-char* get_savestate_path() {
-  char* pref_path = SDL_GetPrefPath("kutu-dev", "och8S");
+char* get_savestate_path()
+{
+    char* pref_path = SDL_GetPrefPath("kutu-dev", "och8S");
 
-  const char* savestate_filename = "savestate.dat";
+    const char* savestate_filename = "savestate.dat";
 
-  char* savestate_path = malloc(strlen(pref_path) + strlen(savestate_filename) + 1);
+    char* savestate_path = malloc(strlen(pref_path) + strlen(savestate_filename) + 1);
 
-  strcpy(savestate_path, pref_path);
-  strcat(savestate_path, savestate_filename);
+    strcpy(savestate_path, pref_path);
+    strcat(savestate_path, savestate_filename);
 
-  return savestate_path;
+    return savestate_path;
 }
 
 /**
@@ -110,8 +111,8 @@ uint8_t load_state(struct VirtualMachine* vm, struct Screen* screen)
     FILE* f = fopen(savestate_path, "rb");
 
     if (f == NULL) {
-      error("Savestate file is missing or access has been refused by permission configurations");
-      return 1;
+        error("Savestate file is missing or access has been refused by permission configurations");
+        return 1;
     }
 
     if (fread(vm->memory, sizeof(vm->memory[0]), sizeof(vm->memory), f) < sizeof(vm->memory)) {
@@ -128,7 +129,6 @@ uint8_t load_state(struct VirtualMachine* vm, struct Screen* screen)
         error("The PC stack wasn't able to be fully read from the save state");
         goto read_failed;
     }
-
 
     if (fread(&vm->pc_stack_index, sizeof(vm->pc_stack_index), 1, f) < 1) {
         error("The PC stack index wasn't able to be fully read from the save state");

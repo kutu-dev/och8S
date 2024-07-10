@@ -35,7 +35,7 @@ struct Opcode {
 
 struct Opcode get_opcode(struct VirtualMachine* vm);
 
-struct VirtualMachine* create_virtual_machine(void);
+struct VirtualMachine* create_virtual_machine(char* rom_path);
 
 uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen);
 
