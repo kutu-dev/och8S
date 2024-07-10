@@ -24,7 +24,7 @@ void formatted_print(const char* message, const char* prefix, va_list data)
 {
     fputs(prefix, stderr);
     vfprintf(stderr, message, data);
-    fputs("\n", stderr);
+    fprintf(stderr, "\n");
 }
 
 /**

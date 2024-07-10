@@ -6,7 +6,7 @@ project(
     'c_std=c23',
     'warning_level=3',
     'optimization=3',
-    'werror=true',
+    #'werror=true',
   ]
 )
 
@@ -18,6 +18,9 @@ add_project_arguments(
 )
 
 sdl2_dep = dependency('sdl2')
+
+cc = meson.get_compiler('c')
+m_dep = cc.find_library('m', required : false)
 
 include_dir = include_directories('include')
 

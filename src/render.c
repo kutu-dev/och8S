@@ -84,7 +84,7 @@ uint8_t draw_screen(struct Screen* screen)
 }
 
 /**
- * @brief Create a new screen.
+ * @brief Create a new screen. Caution!: `SDL_Init()` should have been called beforehand.
  *
  * @param screen_height The height of the screen to create.
  * @param screen_width The width of the screen to create.
@@ -93,12 +93,6 @@ uint8_t draw_screen(struct Screen* screen)
  */
 struct Screen* create_screen(size_t screen_height, size_t screen_width)
 {
-    // TODO Reduce subsystems initialized (remember to also test it on macOS)
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-        error("Cound't initialze SDL: %s", SDL_GetError());
-        return NULL;
-    }
-
     SDL_Window* window = SDL_CreateWindow("och8S", SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED, screen_width * 8, screen_height * 8, 0);
     if (window == NULL) {

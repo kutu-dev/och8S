@@ -4,9 +4,11 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "audio.h"
 #include "keys.h"
 #include "logging.h"
 #include "render.h"
+#include "save-state.h"
 #include "virtual-machine.h"
 
 /**
@@ -28,6 +30,17 @@ uint64_t get_microsecond_timestamp()
 
 int main()
 {
+    // TODO Reduce subsystems initialized (remember to also test it on macOS)
+    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+        error("Cound't initialze SDL: %s", SDL_GetError());
+        return 1;
+    }
+
+    uint32_t audio_sample_counter = 0;
+    if (setup_audio(&audio_sample_counter) != 0) {
+        goto audio_failed;
+    }
+
     uint16_t opcodes_per_second = 700;
 
     info("Welcome to och8S emulator!");
@@ -67,8 +80,6 @@ int main()
 
     debug("Starting the mainloop");
     while (!quit) {
-        puts("\a");
-
         uint64_t cpu_new_time = get_microsecond_timestamp();
         if (cpu_new_time == 0) {
             goto cpu_new_time_failed;
@@ -81,6 +92,14 @@ int main()
 
         uint64_t cpu_delta = cpu_new_time - cpu_old_time;
         uint64_t timers_delta = timers_new_time - timers_old_time;
+
+        // The original CHIP-8 spec specify that the sound should start with more that one set in the timer
+        if (vm->sound_timer > 1) {
+            SDL_PauseAudio(0);
+        } else {
+            SDL_PauseAudio(1);
+            audio_sample_counter = 0;
+        }
 
         if (timers_delta >= 1.0 / 60.0 * 1000000) {
             if (vm->delay_timer > 0) {
@@ -107,12 +126,26 @@ int main()
                 }
             }
 
+            if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.scancode == SDL_SCANCODE_N) {
+                    if (save_state(vm, screen) != 0) {
+                        return 1;
+                    }
+                }
+
+                if (event.key.keysym.scancode == SDL_SCANCODE_M) {
+                    if (load_state(vm, screen) > 1) {
+                        return 1;
+                    }
+                }
+            }
+
             if (event.type == SDL_KEYUP && vm->wait_key == -1) {
                 vm->wait_key = sdl_scancode_to_chip8_key(event.key.keysym.scancode);
             }
         }
 
-        // getchar();
+        //getchar();
         if (cpu_delta >= (1.0 / opcodes_per_second) * 1000000) {
             if (step_cpu(vm, screen) != 0) {
                 goto step_cpu_failed;
@@ -130,7 +163,10 @@ int main()
     free(vm);
     debug("Deallocated the virtual machine");
     info("Goodbye!");
-    
+
+    SDL_CloseAudio();
+    SDL_Quit();
+
     return 0;
 
 step_cpu_failed:
@@ -143,6 +179,10 @@ timers_old_time_failed:
 virtual_machine_failed:
     delete_screen(screen);
     debug("Deallocated the screen");
+
+    SDL_CloseAudio();
+audio_failed:
+    SDL_Quit();
 
     return 1;
 }

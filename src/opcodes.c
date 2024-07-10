@@ -254,9 +254,7 @@ void opcode_f(struct Opcode opcode, struct VirtualMachine* vm)
 
         debug("Pointing the register i to the character %x", character);
 
-
         // Multiply the key by the number of bytes each int takes in memory
-        // TODO: Check with this is multiplied
         vm->index_register = 0x50 + character * 5;
 
         break;
@@ -274,7 +272,7 @@ void opcode_f(struct Opcode opcode, struct VirtualMachine* vm)
     }
 
     case 0x55:
-        puts("Saving all registers v to memory");
+        debug("Saving all registers v to memory");
         for (size_t i = 0; i <= opcode.nibble_2; i++) {
             vm->memory[vm->index_register + i] = vm->v_registers[i];
         }
@@ -283,7 +281,7 @@ void opcode_f(struct Opcode opcode, struct VirtualMachine* vm)
         break;
 
     case 0x65:
-        puts("Loading all registers v from memory");
+        debug("Loading all registers v from memory");
         for (size_t i = 0; i <= opcode.nibble_2; i++) {
             vm->v_registers[i] = vm->memory[vm->index_register + i];
         }

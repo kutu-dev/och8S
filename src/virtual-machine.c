@@ -61,8 +61,8 @@ struct VirtualMachine* create_virtual_machine()
     rewind(rom);
 
     if (size > sizeof(vm->memory) - 0x200) {
-      error("ROM size too big for the memory! Are you sure it is valid for this system?");
-      goto rom_size_too_big;
+        error("ROM size too big for the memory! Are you sure it is valid for this system?");
+        goto rom_size_too_big;
     }
 
     size_t count = fread(vm->memory + 0x200, sizeof(vm->memory[0]), size, rom);
@@ -78,8 +78,8 @@ struct VirtualMachine* create_virtual_machine()
 
     return vm;
 
-  rom_size_too_big:
-  read_rom_failed:
+rom_size_too_big:
+read_rom_failed:
     free(vm);
     vm = NULL;
 
@@ -235,9 +235,8 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         break;
 
     default:
-      debug("Unknown opcode, reading data from the ROM?");
-      break;
+        debug("Unknown opcode, reading data from the ROM?");
+        break;
     }
     return 0;
-
 }
