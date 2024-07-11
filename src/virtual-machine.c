@@ -57,6 +57,11 @@ struct VirtualMachine* create_virtual_machine(char* rom_path)
 
     FILE* rom = fopen(rom_path, "rb");
 
+    if (rom == NULL) {
+        error("ROM file is missing or access has been refused by permission configurations");
+        return NULL;
+    }
+
     // Get the size of the file in bytes
     fseek(rom, 0, SEEK_END);
     size_t size = (size_t)ftell(rom);
