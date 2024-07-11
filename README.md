@@ -2,6 +2,7 @@
 <img src="./static/logo.png" width="256">
 <h1>och8S</h1>
 
+![och8S version logo](https://img.shields.io/badge/Version-1.0.0-FA1909?style=flat)
 ![C23 version logo](https://img.shields.io/badge/C23-3949AB?style=flat&logo=c)
 ![GNU GCC version logo](https://img.shields.io/badge/gcc-v14%2B-FFD0AD?style=flat&logo=gnu)
 
