@@ -9,7 +9,7 @@ A CHIP-8 emulator made on C23 and SDL2.
 - The [Meson build system](https://mesonbuild.com/).
 - The [Just command runner](https://just.systems/man/en/).
 
-If you are using the [Nix package manager](https://nixos.org/) you may be interested in the provided [`flake.nix`](./flake.nix).
+If you are using the [Nix package manager](https://nixos.org/) you may be interested in the provided [`flake.nix`](./flake.nix) file.
 
 ## Usage
 First setup the project:
