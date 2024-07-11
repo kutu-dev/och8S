@@ -68,8 +68,7 @@ int main(int argc, char* argv[])
       warning("Manual step is enabled, press ENTER on the terminal to step once the CPU");
     }
 
-    // TODO Reduce subsystems initialized (remember to also test it on macOS)
-    if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         error("Cound't initialze SDL: %s", SDL_GetError());
         return 1;
     }

@@ -8,7 +8,7 @@ help:
 # Setup the build environment
 setup:
   rm -rf build
-  meson setup build
+  env CC=gcc meson setup build
 
 
 # Compile och8S
