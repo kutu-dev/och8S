@@ -39,6 +39,7 @@ void print_help(char* argv[]) {
   puts("  -d Enable the debug logs");
   puts("  -s Enable manual stepping pressing the key ENTER on the terminal");
   puts("  -h Show this info message");
+  puts("  -v Show the version installed of the emulator");
   puts("");
   puts("Created with ❤️ by Jorge \"Kutu\" Dobón Blanco.");
 }
@@ -49,7 +50,7 @@ int main(int argc, char* argv[])
     bool manual_step = false;
 
     while (optind < argc) {
-        int option = getopt(argc, argv, "dsh");
+        int option = getopt(argc, argv, "dshv");
 
         if (option == -1)
         {
@@ -69,6 +70,11 @@ int main(int argc, char* argv[])
       case 'h':
         print_help(argv);
         return 0;
+        break;
+      case 'v':
+        puts("och8S - version 1.0.0");
+        return 0;
+        break;
       break;
         default:
             error("Unknown option");

@@ -1,12 +1,12 @@
 project(
   'och8S', 
   'c',
-  version : '0.1',
+  version : '1.0.0',
   default_options : [
     'c_std=c23',
     'warning_level=3',
     'optimization=3',
-    #'werror=true',
+    'werror=true',
   ]
 )
 
