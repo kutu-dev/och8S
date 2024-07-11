@@ -6,7 +6,7 @@
 ![C23 version logo](https://img.shields.io/badge/C23-3949AB?style=flat&logo=c)
 ![GNU GCC version logo](https://img.shields.io/badge/gcc-v14%2B-FFD0AD?style=flat&logo=gnu)
 
-A CHIP-8 emulator made on C23 and SDL2.
+A CHIP-8 emulator made with C23 and SDL2.
 </div>
 
 ## Prerequisites
