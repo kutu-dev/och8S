@@ -12,6 +12,8 @@
 #define BOLD_PURPLE "\x1b[0;35m"
 #define RESET "\x1b[0m"
 
+bool debug_enable = false;
+
 /**
  * @brief Print a message with a prefix and optionally embedded data like in `printf()`.
  *
@@ -24,7 +26,7 @@ void formatted_print(const char* message, const char* prefix, va_list data)
 {
     fputs(prefix, stderr);
     vfprintf(stderr, message, data);
-    fputs("\n", stderr);
+    fprintf(stderr, "\n");
 }
 
 /**
@@ -80,6 +82,10 @@ void info(const char* message, ...)
  */
 void debug(const char* message, ...)
 {
+    if (!debug_enable) {
+      return;
+    }
+    
     va_list data;
 
     va_start(data, message);

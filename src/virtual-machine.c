@@ -34,9 +34,11 @@ static constexpr uint8_t font_data[] = {
 /**
  * @brief Create a new virtual machine.
  *
+ * @param rom_path The path to the ROM to the loaded.
+ *
  * @return The created virtual machine. It can (and MUST) be deallocated after its use with `free()`.
  */
-struct VirtualMachine* create_virtual_machine()
+struct VirtualMachine* create_virtual_machine(char* rom_path)
 {
     struct VirtualMachine* vm = malloc(sizeof(struct VirtualMachine));
 
@@ -53,7 +55,7 @@ struct VirtualMachine* create_virtual_machine()
 
     memcpy(vm->memory + 0x50, font_data, sizeof(font_data));
 
-    FILE* rom = fopen("rom.ch8", "rb");
+    FILE* rom = fopen(rom_path, "rb");
 
     // Get the size of the file in bytes
     fseek(rom, 0, SEEK_END);
@@ -61,8 +63,8 @@ struct VirtualMachine* create_virtual_machine()
     rewind(rom);
 
     if (size > sizeof(vm->memory) - 0x200) {
-      error("ROM size too big for the memory! Are you sure it is valid for this system?");
-      goto rom_size_too_big;
+        error("ROM size too big for the memory! Are you sure it is valid for this system?");
+        goto rom_size_too_big;
     }
 
     size_t count = fread(vm->memory + 0x200, sizeof(vm->memory[0]), size, rom);
@@ -78,8 +80,8 @@ struct VirtualMachine* create_virtual_machine()
 
     return vm;
 
-  rom_size_too_big:
-  read_rom_failed:
+rom_size_too_big:
+read_rom_failed:
     free(vm);
     vm = NULL;
 
@@ -235,9 +237,8 @@ uint8_t step_cpu(struct VirtualMachine* vm, struct Screen* screen)
         break;
 
     default:
-      debug("Unknown opcode, reading data from the ROM?");
-      break;
+        debug("Unknown opcode, reading data from the ROM?");
+        break;
     }
     return 0;
-
 }
