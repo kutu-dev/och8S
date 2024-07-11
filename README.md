@@ -23,7 +23,7 @@ just run <rom-path>
 ```
 
 The following executions can just be made by pointing to the previously compiled file:
-```
+```sh
 build/src/och8S <rom-path>
 ```
 
