@@ -28,13 +28,28 @@ uint64_t get_microsecond_timestamp()
     return timestamp.tv_sec * 100000 + timestamp.tv_nsec / 1000;
 }
 
+/**
+ * @brief Print the help menu
+ *
+ * @param argv The list of arguments to get the name of the program from.
+ */
+void print_help(char* argv[]) {
+  fprintf(stderr, "Usage: %s [options] <rom_path>...\n", argv[0]);
+  puts("Options:");
+  puts("  -d Enable the debug logs");
+  puts("  -s Enable manual stepping pressing the key ENTER on the terminal");
+  puts("  -h Show this info message");
+  puts("");
+  puts("Created with ❤️ by Jorge \"Kutu\" Dobón Blanco.");
+}
+
 int main(int argc, char* argv[])
 {
     char* rom_path = NULL;
     bool manual_step = false;
 
     while (optind < argc) {
-        int option = getopt(argc, argv, "ds");
+        int option = getopt(argc, argv, "dsh");
 
         if (option == -1)
         {
@@ -51,6 +66,10 @@ int main(int argc, char* argv[])
         case 's':
             manual_step = true;
             break;
+      case 'h':
+        print_help(argv);
+        return 0;
+      break;
         default:
             error("Unknown option");
 
