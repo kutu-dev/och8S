@@ -1,6 +1,10 @@
 <div align="center">
 <img src="./static/logo.png" width="256">
 <h1>och8S</h1>
+
+![C23 version logo](https://img.shields.io/badge/C23-3949AB?style=flat&logo=c)
+![GNU GCC version logo](https://img.shields.io/badge/gcc-v14%2B-FFD0AD?style=flat&logo=gnu)
+
 A CHIP-8 emulator made on C23 and SDL2.
 </div>
 
@@ -8,6 +12,7 @@ A CHIP-8 emulator made on C23 and SDL2.
 - `gcc` compiler version 14 or later (`clang` can be used but the Meson setup can't be done with `just`).
 - The [Meson build system](https://mesonbuild.com/).
 - The [Just command runner](https://just.systems/man/en/).
+- [`SDL2`](https://wiki.libsdl.org/SDL2/FrontPage) with development files installed.
 
 If you are using the [Nix package manager](https://nixos.org/) you may be interested in the provided [`flake.nix`](./flake.nix) file.
 
